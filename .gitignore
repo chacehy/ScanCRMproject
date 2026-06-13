@@ -1,0 +1,25 @@
+# Dependency directories
+node_modules/
+
+# Next.js build output
+.next/
+out/
+
+# Expo / React Native
+.expo/
+android/app/build/
+android/.gradle/
+ios/build/
+
+# IDE / System files
+.vscode/
+.idea/
+.DS_Store
+*.log
+
+# Large compiled binaries (exceeds GitHub's 100MB limit)
+*.apk
+
+# Gemini Agent workspace context
+.gemini/
+brain/
