@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
+  Text,
   TextInput,
   Pressable,
   ActivityIndicator,
@@ -9,20 +10,22 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  useColorScheme
+  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, ThemeProvider } from 'expo-router';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors, Spacing } from '@/constants/theme';
+import { Monogram } from '@/components/brand';
+import { Card } from '@/components/card';
+import { Label } from '@/components/label';
+import { Colors, Spacing, Radii } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
+const c = Colors.dark;
+
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -44,8 +47,8 @@ export default function TabLayout() {
 
   if (loading) {
     return (
-      <View style={[styles.loadingScreen, { backgroundColor: '#050505' }]}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="small" color={c.text} />
       </View>
     );
   }
@@ -55,7 +58,7 @@ export default function TabLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DarkTheme}>
       <AnimatedSplashOverlay />
       <AppTabs />
     </ThemeProvider>
@@ -63,9 +66,6 @@ export default function TabLayout() {
 }
 
 function AuthScreen() {
-  const scheme = useColorScheme();
-  const colors = Colors[scheme === 'unspecified' ? 'light' : scheme];
-
   const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -73,7 +73,7 @@ function AuthScreen() {
 
   const handleAuth = async () => {
     if (!email.trim() || !password.trim()) {
-      Alert.alert('Validation Error', 'Email and password are required.');
+      Alert.alert('Missing details', 'Enter your email and password to continue.');
       return;
     }
     setLoading(true);
@@ -85,9 +85,9 @@ function AuthScreen() {
         });
         if (error) throw error;
         if (data.session) {
-          Alert.alert('Success', 'Account created and signed in successfully!');
+          Alert.alert('Welcome', 'Your account is ready.');
         } else {
-          Alert.alert('Verification Required', 'Please check your email inbox to verify your account.');
+          Alert.alert('Confirm your email', 'Check your inbox for a link to verify your account.');
         }
       } else {
         const { error } = await supabase.auth.signInWithPassword({
@@ -97,54 +97,59 @@ function AuthScreen() {
         if (error) throw error;
       }
     } catch (err: any) {
-      Alert.alert('Authentication Error', err.message || 'Failed to authenticate.');
+      Alert.alert('Sign-in failed', err.message || 'Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SafeAreaView style={[styles.authContainer, { backgroundColor: colors.background }]}>
+    <SafeAreaView style={styles.authContainer}>
+      {/* ambient glow */}
+      <View pointerEvents="none" style={styles.ambient} />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          
-          <View style={styles.brandingContainer}>
-            <View style={[styles.logoBox, { backgroundColor: colors.text }]}>
-              <ThemedText style={{ color: colors.background, fontWeight: 'bold', fontSize: 18 }}>CD</ThemedText>
-            </View>
-            <ThemedText type="subtitle" style={styles.brandTitle}>CardDex CRM</ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.brandSubtitle}>
-              Sign in or create a profile to sync leads in real-time
-            </ThemedText>
+          <View style={styles.branding}>
+            <Monogram size={48} />
+            <Text style={styles.brandTitle}>CardDex</Text>
+            <Label style={styles.brandKicker}>Personal CRM</Label>
           </View>
 
-          <ThemedView type="backgroundElement" style={styles.authCard}>
+          <Card contentStyle={styles.cardInner}>
+            <Text style={styles.cardHeading}>
+              {isSignUp ? 'Create your account' : 'Sign in'}
+            </Text>
+            <Text style={styles.cardSub}>
+              Sync every card you scan across your phone and the web.
+            </Text>
+
             <View style={styles.inputGroup}>
-              <ThemedText type="code" themeColor="textSecondary" style={styles.inputLabel}>Email Address</ThemedText>
+              <Label>Email address</Label>
               <TextInput
                 value={email}
                 onChangeText={setEmail}
                 placeholder="name@company.com"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={c.faint}
                 autoCapitalize="none"
                 keyboardType="email-address"
-                style={[styles.input, { color: colors.text, borderColor: colors.backgroundSelected, backgroundColor: 'rgba(0,0,0,0.15)' }]}
+                style={styles.input}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <ThemedText type="code" themeColor="textSecondary" style={styles.inputLabel}>Password</ThemedText>
+              <Label>Password</Label>
               <TextInput
                 value={password}
                 onChangeText={setPassword}
                 placeholder="••••••••"
-                placeholderTextColor={colors.textSecondary}
+                placeholderTextColor={c.faint}
                 secureTextEntry
                 autoCapitalize="none"
-                style={[styles.input, { color: colors.text, borderColor: colors.backgroundSelected, backgroundColor: 'rgba(0,0,0,0.15)' }]}
+                style={styles.input}
               />
             </View>
 
@@ -153,29 +158,25 @@ function AuthScreen() {
               disabled={loading}
               style={({ pressed }) => [
                 styles.submitBtn,
-                { backgroundColor: pressed ? '#5046e6' : '#6366f1' },
-                loading && { opacity: 0.7 }
+                pressed && { opacity: 0.85 },
+                loading && { opacity: 0.6 },
               ]}
             >
               {loading ? (
-                <ActivityIndicator size="small" color="#ffffff" />
+                <ActivityIndicator size="small" color={c.primaryText} />
               ) : (
-                <ThemedText type="smallBold" style={{ color: '#ffffff' }}>
-                  {isSignUp ? 'Create Account' : 'Sign In'}
-                </ThemedText>
+                <Text style={styles.submitText}>
+                  {isSignUp ? 'Create account' : 'Sign in'}
+                </Text>
               )}
             </Pressable>
-          </ThemedView>
+          </Card>
 
-          <Pressable
-            onPress={() => setIsSignUp(!isSignUp)}
-            style={styles.toggleBtn}
-          >
-            <ThemedText type="code" themeColor="textSecondary" style={{ textAlign: 'center' }}>
-              {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
-            </ThemedText>
+          <Pressable onPress={() => setIsSignUp(!isSignUp)} style={styles.toggleBtn}>
+            <Text style={styles.toggleText}>
+              {isSignUp ? 'Already have an account?  Sign in' : 'Need an account?  Create one'}
+            </Text>
           </Pressable>
-
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -187,71 +188,92 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: c.background,
   },
   authContainer: {
     flex: 1,
+    backgroundColor: c.background,
+  },
+  ambient: {
+    position: 'absolute',
+    top: -120,
+    left: -60,
+    right: -60,
+    height: 380,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+    borderRadius: 999,
   },
   scrollContent: {
     padding: Spacing.five,
     justifyContent: 'center',
     flexGrow: 1,
   },
-  brandingContainer: {
+  branding: {
     alignItems: 'center',
     marginBottom: Spacing.five,
-  },
-  logoBox: {
-    width: 44,
-    height: 44,
-    borderRadius: Spacing.two,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.three,
+    gap: Spacing.two,
   },
   brandTitle: {
+    color: c.text,
     fontWeight: '800',
-    fontSize: 22,
-  },
-  brandSubtitle: {
-    textAlign: 'center',
+    fontSize: 26,
+    letterSpacing: -0.8,
     marginTop: Spacing.one,
-    fontSize: 13,
-    lineHeight: 18,
   },
-  authCard: {
-    borderRadius: Spacing.two,
+  brandKicker: {
+    letterSpacing: 3,
+  },
+  cardInner: {
     padding: Spacing.four,
     gap: Spacing.three,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.03)',
+  },
+  cardHeading: {
+    color: c.text,
+    fontSize: 18,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+  },
+  cardSub: {
+    color: c.muted,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: -Spacing.two,
+    marginBottom: Spacing.one,
   },
   inputGroup: {
-    gap: Spacing.one,
-  },
-  inputLabel: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    gap: Spacing.two,
   },
   input: {
-    height: 42,
+    height: 44,
     borderWidth: 1,
-    borderRadius: Spacing.one,
+    borderColor: c.hairline,
+    borderRadius: Radii.sm,
     paddingHorizontal: Spacing.three,
     fontSize: 14,
+    color: c.text,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   submitBtn: {
     height: 48,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: Spacing.two,
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    backgroundColor: c.primary,
+  },
+  submitText: {
+    color: c.primaryText,
+    fontWeight: '700',
+    fontSize: 14,
   },
   toggleBtn: {
     marginTop: Spacing.four,
     paddingVertical: Spacing.two,
+    alignItems: 'center',
+  },
+  toggleText: {
+    color: c.muted,
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

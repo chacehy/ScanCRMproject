@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   StyleSheet,
+  Text,
   ActivityIndicator,
   ScrollView,
   Image,
@@ -8,21 +9,30 @@ import {
   Pressable,
   Platform,
   Alert,
-  View
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import Constants from 'expo-constants';
 import { useRouter } from 'expo-router';
+import { Camera, ImagePlus, Sparkles, RotateCcw, ScanLine } from 'lucide-react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Monogram } from '@/components/brand';
+import { Card } from '@/components/card';
+import { Label } from '@/components/label';
+import { STATUS, type StatusKey } from '@/components/status-badge';
+import { Colors, Spacing, Radii } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+
+const c = Colors.dark;
 
 // Resolve Next.js backend URL based on platform/environment
 const getBackendUrl = () => {
+  // Production/deployed backend, e.g. https://your-web-app.vercel.app
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
   if (Platform.OS === 'web') {
     return '';
   }
@@ -34,8 +44,9 @@ const getBackendUrl = () => {
   return Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
 };
 
+const SCAN_STATUSES: StatusKey[] = ['new', 'followed_up', 'hot'];
+
 export default function ScanScreen() {
-  const theme = useTheme();
   const router = useRouter();
 
   // App States
@@ -65,12 +76,10 @@ export default function ScanScreen() {
       const libraryStatus = await ImagePicker.requestMediaLibraryPermissionsAsync();
 
       if (cameraStatus.status !== 'granted' || libraryStatus.status !== 'granted') {
-        const errorMsg = 'We need camera and photo library access to scan business cards!';
-        if (Platform.OS === 'web') {
-          alert(errorMsg);
-        } else {
-          Alert.alert('Permissions Required', errorMsg);
-        }
+        Alert.alert(
+          'Permissions Required',
+          'We need camera and photo library access to scan business cards!'
+        );
         return false;
       }
     }
@@ -150,7 +159,7 @@ export default function ScanScreen() {
       setWebsite('www.prismatech.io');
       setWhereMet('TechCrunch Disrupt SF 2026');
       setWhyMet('Potential dev agency client or advisor');
-      setNotes('Scanned using simulated OCR. Replace with actual text.');
+      setNotes('Sample contact. Replace with your own details.');
       setStatus('hot');
       setFormVisible(true);
       setScanning(false);
@@ -188,7 +197,7 @@ export default function ScanScreen() {
 
       // Prepopulate notes if it was seeded/mocked
       if (data._isMock) {
-        setNotes('Scanned using simulated OCR. Replace with actual text.');
+        setNotes('Sample contact. Replace with your own details.');
       } else {
         setNotes('');
       }
@@ -201,7 +210,7 @@ export default function ScanScreen() {
 
     } catch (error: any) {
       console.error('Ocr request failed:', error);
-      const errMsg = 'AI scanning failed: ' + error.message + '\n\nYou can still fill out the contact fields manually.';
+      const errMsg = 'Scan failed: ' + error.message + '\n\nYou can still fill out the contact fields manually.';
       if (Platform.OS === 'web') alert(errMsg);
       else Alert.alert('Scan Warning', errMsg);
 
@@ -236,7 +245,7 @@ export default function ScanScreen() {
       if (userError || !user) throw new Error('User session not found. Please log in again.');
 
       const newId = 'lead_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-      
+
       const newLead = {
         id: newId,
         type: 'business_card',
@@ -290,267 +299,233 @@ export default function ScanScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
+    <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        
-        {/* Logo/Branding Header */}
-        <ThemedView style={styles.header}>
-          <ThemedText type="subtitle" style={styles.headerTitle}>CardDex Scanner</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary">
-            Snap business cards to instantly extract contact details
-          </ThemedText>
-        </ThemedView>
+
+        {/* Branded Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <Monogram size={30} />
+            <View>
+              <Text style={styles.headerTitle}>CardDex</Text>
+              <Label style={{ letterSpacing: 2.5 }}>Scanner</Label>
+            </View>
+          </View>
+        </View>
 
         {/* Start State - Prompts user to scan or pick photo */}
         {!scanning && !formVisible && (
-          <ThemedView type="backgroundElement" style={styles.startCard}>
-            <ThemedView style={styles.iconContainer}>
-              <ThemedText style={styles.cameraIcon}>📸</ThemedText>
-            </ThemedView>
-            
-            <ThemedText type="default" style={styles.cardPrompt}>
-              Scan a Business Card
-            </ThemedText>
-            
-            <ThemedText type="small" themeColor="textSecondary" style={styles.cardDesc}>
-              Using the phone camera, align the business card horizontally and snap a high-contrast image.
-            </ThemedText>
+          <Card contentStyle={styles.startCard}>
+            <View style={styles.iconTile}>
+              <ScanLine size={26} color={c.text} strokeWidth={1.5} />
+            </View>
+
+            <Text style={styles.cardPrompt}>Scan a business card</Text>
+            <Text style={styles.cardDesc}>
+              Line the card up flat and fill the frame. We&apos;ll pull out the name, company, and contact details for you.
+            </Text>
 
             <View style={styles.buttonGroup}>
               <Pressable
                 onPress={handleTakePhoto}
-                style={({ pressed }) => [
-                  styles.primaryButton,
-                  { backgroundColor: pressed ? '#5046e6' : '#6366f1' }
-                ]}
+                style={({ pressed }) => [styles.primaryButton, pressed && { opacity: 0.85 }]}
               >
-                <ThemedText type="smallBold" style={styles.buttonText}>
-                  Take Photo
-                </ThemedText>
+                <Camera size={16} color={c.primaryText} strokeWidth={2} />
+                <Text style={styles.primaryText}>Take photo</Text>
               </Pressable>
 
               <Pressable
                 onPress={handlePickPhoto}
-                style={({ pressed }) => [
-                  styles.secondaryButton,
-                  { 
-                    backgroundColor: pressed ? theme.backgroundSelected : theme.background,
-                    borderColor: theme.backgroundSelected 
-                  }
-                ]}
+                style={({ pressed }) => [styles.secondaryButton, pressed && { backgroundColor: c.backgroundSelected }]}
               >
-                <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  Upload from Gallery
-                </ThemedText>
+                <ImagePlus size={16} color={c.text} strokeWidth={1.75} />
+                <Text style={styles.secondaryText}>Upload from gallery</Text>
               </Pressable>
 
               <Pressable
                 onPress={handleSimulateScan}
-                style={({ pressed }) => [
-                  styles.tertiaryButton,
-                  { 
-                    backgroundColor: pressed ? theme.backgroundSelected : theme.background,
-                    borderColor: theme.backgroundSelected 
-                  }
-                ]}
+                style={({ pressed }) => [styles.ghostButton, pressed && { backgroundColor: c.backgroundSelected }]}
               >
-                <ThemedText type="smallBold" style={{ color: theme.text }}>
-                  Simulate Scan (Mock Contact)
-                </ThemedText>
+                <Sparkles size={15} color={c.muted} strokeWidth={1.75} />
+                <Text style={styles.ghostText}>Use sample contact</Text>
               </Pressable>
             </View>
-          </ThemedView>
+          </Card>
         )}
 
         {/* Scanning State */}
         {scanning && (
-          <ThemedView type="backgroundElement" style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#6366f1" style={{ marginBottom: Spacing.four }} />
-            <ThemedText type="default" style={styles.loadingTitle}>
-              Processing Card Image
-            </ThemedText>
-            <ThemedText type="small" themeColor="textSecondary" style={styles.loadingDesc}>
-              Gemini AI is reading layout, extracting details, and mapping contact data...
-            </ThemedText>
-          </ThemedView>
+          <Card contentStyle={styles.loadingCard}>
+            <ActivityIndicator size="large" color={c.text} style={{ marginBottom: Spacing.four }} />
+            <Text style={styles.loadingTitle}>Reading the card</Text>
+            <Text style={styles.loadingDesc}>
+              Extracting the name, company, and contact details from your image…
+            </Text>
+          </Card>
         )}
 
         {/* Form State - Displays parsed OCR fields and relationship questions */}
         {formVisible && (
-          <ThemedView style={styles.formContainer}>
-            
+          <View style={styles.formContainer}>
+
             {/* Scanned Image Preview */}
             {imageUri && (
               <View style={styles.previewContainer}>
                 <Image source={{ uri: imageUri }} style={styles.previewImage} resizeMode="cover" />
                 <Pressable onPress={handleReset} style={styles.resetBadge}>
-                  <ThemedText type="code" style={{ color: '#fff', fontSize: 10 }}>Retake Image</ThemedText>
+                  <RotateCcw size={12} color="#fff" strokeWidth={2} />
+                  <Text style={styles.resetBadgeText}>Retake</Text>
                 </Pressable>
               </View>
             )}
 
-            <ThemedText type="smallBold" themeColor="textSecondary" style={styles.sectionTitle}>
-              EXTRACTED CONTACT DETAILS
-            </ThemedText>
+            <Label style={styles.sectionTitle}>Contact details</Label>
 
-            <ThemedView type="backgroundElement" style={styles.formSection}>
-              
+            <Card contentStyle={styles.formSection}>
               {/* Full Name */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Full Name *</ThemedText>
+                <Label>Full name *</Label>
                 <TextInput
                   value={name}
                   onChangeText={setName}
                   placeholder="e.g. Sarah Chen"
-                  placeholderTextColor={theme.textSecondary}
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  placeholderTextColor={c.faint}
+                  style={styles.input}
                 />
               </View>
 
               {/* Company & Job Title */}
               <View style={styles.gridRow}>
                 <View style={[styles.inputGroup, { flex: 1, marginRight: Spacing.two }]}>
-                  <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Company</ThemedText>
+                  <Label>Company</Label>
                   <TextInput
                     value={company}
                     onChangeText={setCompany}
                     placeholder="e.g. Prisma Tech"
-                    placeholderTextColor={theme.textSecondary}
-                    style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                    placeholderTextColor={c.faint}
+                    style={styles.input}
                   />
                 </View>
                 <View style={[styles.inputGroup, { flex: 1 }]}>
-                  <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Job Title</ThemedText>
+                  <Label>Job title</Label>
                   <TextInput
                     value={jobTitle}
                     onChangeText={setJobTitle}
                     placeholder="e.g. Director"
-                    placeholderTextColor={theme.textSecondary}
-                    style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                    placeholderTextColor={c.faint}
+                    style={styles.input}
                   />
                 </View>
               </View>
 
-              {/* Email & Phone */}
+              {/* Email */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Email Address</ThemedText>
+                <Label>Email address</Label>
                 <TextInput
                   value={email}
                   onChangeText={setEmail}
                   placeholder="e.g. sarah@prismatech.io"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={c.faint}
                   keyboardType="email-address"
                   autoCapitalize="none"
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={styles.input}
                 />
               </View>
 
+              {/* Phone */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Phone Number</ThemedText>
+                <Label>Phone number</Label>
                 <TextInput
                   value={phone}
                   onChangeText={setPhone}
                   placeholder="e.g. +1 (415) 555-1234"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={c.faint}
                   keyboardType="phone-pad"
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={styles.input}
                 />
               </View>
 
               {/* Website */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Website</ThemedText>
+                <Label>Website</Label>
                 <TextInput
                   value={website}
                   onChangeText={setWebsite}
                   placeholder="e.g. www.prismatech.io"
-                  placeholderTextColor={theme.textSecondary}
+                  placeholderTextColor={c.faint}
                   autoCapitalize="none"
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  style={styles.input}
                 />
               </View>
-            </ThemedView>
+            </Card>
 
-            <ThemedText type="smallBold" themeColor="textSecondary" style={[styles.sectionTitle, { marginTop: Spacing.four }]}>
-              MEETING CONTEXT & QUESTIONS
-            </ThemedText>
+            <Label style={[styles.sectionTitle, { marginTop: Spacing.four }]}>Meeting context</Label>
 
-            <ThemedView type="backgroundElement" style={styles.formSection}>
-              
+            <Card contentStyle={styles.formSection}>
               {/* Where met */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Where did you meet them? *</ThemedText>
+                <Label>Where did you meet them? *</Label>
                 <TextInput
                   value={whereMet}
                   onChangeText={setWhereMet}
-                  placeholder="e.g. TechCrunch Conference, Cafe"
-                  placeholderTextColor={theme.textSecondary}
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  placeholder="e.g. TechCrunch, a cafe, a conference"
+                  placeholderTextColor={c.faint}
+                  style={styles.input}
                 />
               </View>
 
               {/* Why met */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Why / How can they help you?</ThemedText>
+                <Label>Why does this contact matter?</Label>
                 <TextInput
                   value={whyMet}
                   onChangeText={setWhyMet}
-                  placeholder="e.g. Potential agency client, Supplier"
-                  placeholderTextColor={theme.textSecondary}
-                  style={[styles.input, { color: theme.text, borderColor: theme.backgroundSelected }]}
+                  placeholder="e.g. Potential client, supplier, hire"
+                  placeholderTextColor={c.faint}
+                  style={styles.input}
                 />
               </View>
 
               {/* Lead Status */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>CRM Follow-up Status</ThemedText>
+                <Label>Follow-up status</Label>
                 <View style={styles.statusRow}>
-                  {[
-                    { label: 'New', value: 'new' },
-                    { label: 'Followed Up', value: 'followed_up' },
-                    { label: 'Hot', value: 'hot' }
-                  ].map((s) => (
-                    <Pressable
-                      key={s.value}
-                      onPress={() => setStatus(s.value)}
-                      style={[
-                        styles.statusButton,
-                        { borderColor: theme.backgroundSelected },
-                        status === s.value && { backgroundColor: '#6366f1', borderColor: '#6366f1' }
-                      ]}
-                    >
-                      <ThemedText 
-                        type="code" 
+                  {SCAN_STATUSES.map((key) => {
+                    const s = STATUS[key];
+                    const active = status === key;
+                    return (
+                      <Pressable
+                        key={key}
+                        onPress={() => setStatus(key)}
                         style={[
-                          { color: theme.text },
-                          status === s.value && { color: '#ffffff', fontWeight: 'bold' }
+                          styles.statusButton,
+                          active && { backgroundColor: s.color + '1f', borderColor: s.color + '80' },
                         ]}
                       >
-                        {s.label}
-                      </ThemedText>
-                    </Pressable>
-                  ))}
+                        <s.Icon size={12} color={active ? s.color : c.muted} strokeWidth={2} />
+                        <Text style={[styles.statusButtonText, { color: active ? s.color : c.muted }]}>
+                          {s.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
                 </View>
               </View>
 
               {/* Detailed Notes */}
               <View style={styles.inputGroup}>
-                <ThemedText type="code" themeColor="textSecondary" style={styles.label}>Notes / Conversation Details</ThemedText>
+                <Label>Notes</Label>
                 <TextInput
                   value={notes}
                   onChangeText={setNotes}
-                  placeholder="Write down details you will forget later..."
-                  placeholderTextColor={theme.textSecondary}
+                  placeholder="Anything you'll want to remember later…"
+                  placeholderTextColor={c.faint}
                   multiline
                   numberOfLines={4}
-                  style={[
-                    styles.input, 
-                    styles.textArea, 
-                    { color: theme.text, borderColor: theme.backgroundSelected }
-                  ]}
+                  style={[styles.input, styles.textArea]}
                 />
               </View>
-            </ThemedView>
+            </Card>
 
             {/* Form Save Button */}
             <View style={styles.submitContainer}>
@@ -559,36 +534,23 @@ export default function ScanScreen() {
                 disabled={saving}
                 style={({ pressed }) => [
                   styles.saveButton,
-                  { backgroundColor: pressed ? '#5046e6' : '#6366f1' },
-                  saving && { opacity: 0.7 }
+                  pressed && { opacity: 0.85 },
+                  saving && { opacity: 0.6 },
                 ]}
               >
                 {saving ? (
-                  <ActivityIndicator size="small" color="#ffffff" />
+                  <ActivityIndicator size="small" color={c.primaryText} />
                 ) : (
-                  <ThemedText type="smallBold" style={styles.buttonText}>
-                    Save Contact to CRM
-                  </ThemedText>
+                  <Text style={styles.primaryText}>Save to CRM</Text>
                 )}
               </Pressable>
 
-              <Pressable
-                onPress={handleReset}
-                disabled={saving}
-                style={({ pressed }) => [
-                  styles.cancelButton,
-                  { backgroundColor: pressed ? theme.backgroundSelected : 'transparent' }
-                ]}
-              >
-                <ThemedText type="smallBold" themeColor="textSecondary">
-                  Discard
-                </ThemedText>
+              <Pressable onPress={handleReset} disabled={saving} style={styles.cancelButton}>
+                <Text style={styles.cancelText}>Discard</Text>
               </Pressable>
             </View>
-
-          </ThemedView>
+          </View>
         )}
-
       </ScrollView>
     </SafeAreaView>
   );
@@ -597,6 +559,7 @@ export default function ScanScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: c.background,
   },
   scrollContent: {
     padding: Spacing.four,
@@ -604,93 +567,111 @@ const styles = StyleSheet.create({
   },
   header: {
     marginBottom: Spacing.four,
+    marginTop: Spacing.one,
+  },
+  headerLeft: {
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.one,
+    gap: Spacing.three,
   },
   headerTitle: {
-    textAlign: 'center',
+    color: c.text,
+    fontSize: 18,
     fontWeight: '800',
+    letterSpacing: -0.5,
   },
   startCard: {
-    borderRadius: Spacing.two,
     padding: Spacing.five,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.05)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    marginTop: Spacing.three,
+    marginTop: Spacing.two,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: Spacing.one,
-    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+  iconTile: {
+    width: 60,
+    height: 60,
+    borderRadius: Radii.md,
+    backgroundColor: c.backgroundElement,
+    borderWidth: 1,
+    borderColor: c.hairline,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: Spacing.four,
   },
-  cameraIcon: {
-    fontSize: 28,
-  },
   cardPrompt: {
+    color: c.text,
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: -0.4,
     marginBottom: Spacing.two,
   },
   cardDesc: {
+    color: c.muted,
     textAlign: 'center',
     marginBottom: Spacing.five,
-    lineHeight: 18,
+    lineHeight: 19,
     fontSize: 13,
   },
   buttonGroup: {
     width: '100%',
-    gap: Spacing.three,
+    gap: Spacing.two,
   },
   primaryButton: {
     height: 48,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    gap: Spacing.two,
+    backgroundColor: c.primary,
+  },
+  primaryText: {
+    color: c.primaryText,
+    fontWeight: '700',
+    fontSize: 14,
   },
   secondaryButton: {
     height: 48,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: Spacing.two,
     borderWidth: 1,
+    borderColor: c.hairline,
+    backgroundColor: c.backgroundElement,
   },
-  tertiaryButton: {
-    height: 48,
-    borderRadius: Spacing.one,
+  secondaryText: {
+    color: c.text,
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  ghostButton: {
+    height: 44,
+    borderRadius: Radii.sm,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
+    gap: Spacing.two,
   },
-  buttonText: {
-    color: '#ffffff',
+  ghostText: {
+    color: c.muted,
+    fontWeight: '600',
+    fontSize: 13,
   },
   loadingCard: {
-    borderRadius: Spacing.two,
-    padding: Spacing.five,
+    padding: Spacing.six,
     alignItems: 'center',
-    marginTop: Spacing.three,
+    marginTop: Spacing.two,
   },
   loadingTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    color: c.text,
+    fontSize: 17,
+    fontWeight: '700',
     marginBottom: Spacing.two,
   },
   loadingDesc: {
+    color: c.muted,
     textAlign: 'center',
-    lineHeight: 18,
+    lineHeight: 19,
     fontSize: 13,
   },
   formContainer: {
@@ -699,10 +680,12 @@ const styles = StyleSheet.create({
   previewContainer: {
     height: 160,
     width: '100%',
-    borderRadius: Spacing.two,
+    borderRadius: Radii.lg,
     overflow: 'hidden',
     position: 'relative',
     marginBottom: Spacing.two,
+    borderWidth: 1,
+    borderColor: c.hairline,
   },
   previewImage: {
     width: '100%',
@@ -712,43 +695,45 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: Spacing.two,
     right: Spacing.two,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: 'rgba(0,0,0,0.65)',
     paddingHorizontal: Spacing.two,
-    paddingVertical: Spacing.one,
-    borderRadius: Spacing.one,
+    paddingVertical: 6,
+    borderRadius: Radii.sm,
+  },
+  resetBadgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
   },
   sectionTitle: {
-    fontSize: 11,
-    letterSpacing: 1,
-    fontWeight: 'bold',
     marginLeft: Spacing.one,
+    letterSpacing: 2,
   },
   formSection: {
-    borderRadius: Spacing.two,
     padding: Spacing.three,
     gap: Spacing.three,
   },
   inputGroup: {
-    gap: Spacing.one,
+    gap: Spacing.two,
   },
   gridRow: {
     flexDirection: 'row',
   },
-  label: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    marginBottom: 2,
-  },
   input: {
-    height: 40,
+    height: 42,
     borderWidth: 1,
-    borderRadius: Spacing.one,
+    borderColor: c.hairline,
+    borderRadius: Radii.sm,
     paddingHorizontal: Spacing.three,
     fontSize: 14,
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    color: c.text,
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   textArea: {
-    height: 80,
+    height: 88,
     paddingTop: Spacing.two,
     textAlignVertical: 'top',
   },
@@ -758,27 +743,40 @@ const styles = StyleSheet.create({
   },
   statusButton: {
     flex: 1,
-    height: 36,
+    height: 40,
+    flexDirection: 'row',
     borderWidth: 1,
-    borderRadius: Spacing.one,
+    borderColor: c.hairline,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.15)',
+    gap: 6,
+    backgroundColor: 'rgba(0,0,0,0.2)',
+  },
+  statusButtonText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
   submitContainer: {
     gap: Spacing.two,
     marginTop: Spacing.three,
   },
   saveButton: {
-    height: 48,
-    borderRadius: Spacing.one,
+    height: 50,
+    borderRadius: Radii.sm,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: c.primary,
+  },
+  cancelButton: {
+    height: 46,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cancelButton: {
-    height: 48,
-    borderRadius: Spacing.one,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cancelText: {
+    color: c.muted,
+    fontWeight: '600',
+    fontSize: 14,
   },
 });

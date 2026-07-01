@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   StyleSheet,
+  Text,
   ScrollView,
   Pressable,
   TextInput,
@@ -10,16 +11,31 @@ import {
   Platform,
   Alert,
   RefreshControl,
-  Modal
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
+import {
+  Search,
+  Building2,
+  MapPin,
+  Target,
+  Mail,
+  Phone,
+  Globe,
+  ChevronRight,
+  X,
+  Inbox,
+  LogOut,
+} from 'lucide-react-native';
 
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Spacing } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Card, bezelStyles } from '@/components/card';
+import { Label } from '@/components/label';
+import { StatusBadge } from '@/components/status-badge';
+import { Colors, Spacing, Radii } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+
+const c = Colors.dark;
 
 interface LeadDetails {
   company?: string;
@@ -43,8 +59,6 @@ interface Lead {
 }
 
 export default function HistoryScreen() {
-  const theme = useTheme();
-
   // App States
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,7 +114,7 @@ export default function HistoryScreen() {
             'Are you sure you want to remove this contact from your CRM?',
             [
               { text: 'Cancel', style: 'cancel', onPress: () => resolve(false) },
-              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) }
+              { text: 'Delete', style: 'destructive', onPress: () => resolve(true) },
             ]
           );
         }
@@ -118,7 +132,7 @@ export default function HistoryScreen() {
       // Update local state
       setLeads((prev) => prev.filter((l) => l.id !== id));
       setSelectedLead(null);
-      
+
       const successMsg = 'Contact removed successfully.';
       if (Platform.OS === 'web') alert(successMsg);
       else Alert.alert('Deleted', successMsg);
@@ -168,27 +182,19 @@ export default function HistoryScreen() {
     );
   });
 
-  const getStatusBadgeStyle = (status: string) => {
-    switch (status) {
-      case 'new':
-        return { bg: 'rgba(59, 130, 246, 0.15)', text: '#3b82f6', label: 'New' };
-      case 'followed_up':
-        return { bg: 'rgba(168, 85, 247, 0.15)', text: '#a855f7', label: 'Followed Up' };
-      case 'hot':
-        return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', label: 'Hot' };
-      default:
-        return { bg: 'rgba(113, 113, 122, 0.15)', text: '#71717a', label: 'Archived' };
-    }
-  };
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: theme.background }]}>
-      
+    <SafeAreaView style={styles.container}>
+
       {/* Header and Search Bar */}
-      <ThemedView style={styles.header}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <ThemedText type="subtitle" style={styles.title}>History</ThemedText>
-          
+      <View style={styles.header}>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.title}>History</Text>
+            <Label style={{ marginTop: 2 }}>
+              {leads.length} {leads.length === 1 ? 'contact' : 'contacts'}
+            </Label>
+          </View>
+
           <Pressable
             onPress={async () => {
               try {
@@ -201,101 +207,95 @@ export default function HistoryScreen() {
             }}
             style={({ pressed }) => [
               styles.logoutButton,
-              { 
-                borderColor: theme.backgroundSelected, 
-                backgroundColor: pressed ? 'rgba(239, 68, 68, 0.1)' : 'transparent' 
-              }
+              pressed && { backgroundColor: 'rgba(248,113,113,0.12)' },
             ]}
           >
-            <ThemedText type="code" style={{ color: '#ef4444', fontSize: 10, fontWeight: 'bold' }}>SIGN OUT</ThemedText>
+            <LogOut size={12} color={c.danger} strokeWidth={2} />
+            <Text style={styles.logoutText}>Sign out</Text>
           </Pressable>
         </View>
-        
-        <TextInput
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholder="Search contacts, companies, events..."
-          placeholderTextColor={theme.textSecondary}
-          style={[styles.searchBar, { color: theme.text, borderColor: theme.backgroundSelected, backgroundColor: 'rgba(0,0,0,0.1)' }]}
-        />
-      </ThemedView>
+
+        <View style={styles.searchWrap}>
+          <Search size={15} color={c.muted} strokeWidth={1.75} style={styles.searchIcon} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Search name, company, event…"
+            placeholderTextColor={c.faint}
+            style={styles.searchBar}
+          />
+        </View>
+      </View>
 
       {/* Main List */}
       {loading ? (
         <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color="#6366f1" />
-          <ThemedText type="small" themeColor="textSecondary" style={{ marginTop: Spacing.two }}>
-            Loading contacts...
-          </ThemedText>
+          <ActivityIndicator size="small" color={c.text} />
+          <Label style={{ marginTop: Spacing.three }}>Loading contacts</Label>
         </View>
       ) : filteredLeads.length === 0 ? (
         <ScrollView
           contentContainerStyle={styles.centerContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#6366f1" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={c.text} />}
         >
-          <ThemedText style={styles.emptyIcon}>📂</ThemedText>
-          <ThemedText type="default" style={styles.emptyText}>No contacts found</ThemedText>
-          <ThemedText type="small" themeColor="textSecondary" style={styles.emptySub}>
-            {leads.length === 0 
-              ? 'Scan some business cards on the first tab to build your CRM database.' 
-              : 'Try matching other criteria in your search.'}
-          </ThemedText>
+          <View style={styles.emptyTile}>
+            <Inbox size={24} color={c.muted} strokeWidth={1.5} />
+          </View>
+          <Text style={styles.emptyText}>No contacts yet</Text>
+          <Text style={styles.emptySub}>
+            {leads.length === 0
+              ? 'Scan a business card on the Scan tab to start building your CRM.'
+              : 'Nothing matches that search. Try a different term.'}
+          </Text>
         </ScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={styles.listContent}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor="#6366f1" />}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={c.text} />}
         >
-          {filteredLeads.map((lead) => {
-            const statusBadge = getStatusBadgeStyle(lead.status);
-            return (
-              <Pressable
-                key={lead.id}
-                onPress={() => setSelectedLead(lead)}
-                style={({ pressed }) => [
-                  styles.card,
-                  { 
-                    backgroundColor: theme.backgroundElement, 
-                    borderColor: pressed ? '#6366f1' : 'rgba(255,255,255,0.03)' 
-                  }
-                ]}
-              >
+          {filteredLeads.map((lead) => (
+            <Pressable
+              key={lead.id}
+              onPress={() => setSelectedLead(lead)}
+              style={({ pressed }) => [bezelStyles.bezel, pressed && { opacity: 0.85 }]}
+            >
+              <View style={[bezelStyles.inner, styles.card]}>
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1, marginRight: Spacing.two }}>
-                    <ThemedText type="smallBold" style={styles.cardName}>{lead.customer_name}</ThemedText>
-                    <ThemedText type="code" themeColor="textSecondary" style={styles.cardTitle}>
-                      {lead.details?.job_title || 'No Title'}
-                    </ThemedText>
+                    <Text style={styles.cardName}>{lead.customer_name}</Text>
+                    <Text style={styles.cardTitle}>{lead.details?.job_title || 'No title'}</Text>
                   </View>
-                  
-                  <View style={[styles.statusBadge, { backgroundColor: statusBadge.bg }]}>
-                    <ThemedText style={[styles.statusText, { color: statusBadge.text }]}>
-                      {statusBadge.label}
-                    </ThemedText>
-                  </View>
+                  <StatusBadge status={lead.status} />
                 </View>
 
                 {lead.details?.company && (
-                  <ThemedText type="small" style={styles.cardCompany}>
-                    🏢 {lead.details.company}
-                  </ThemedText>
+                  <View style={styles.cardRow}>
+                    <Building2 size={13} color={c.muted} strokeWidth={1.75} />
+                    <Text style={styles.cardCompany}>{lead.details.company}</Text>
+                  </View>
                 )}
 
                 <View style={styles.cardFooter}>
-                  <ThemedText type="code" themeColor="textSecondary" style={styles.cardLocation}>
-                    📍 {lead.details?.where_met || 'Met location not set'}
-                  </ThemedText>
+                  <View style={styles.cardRow}>
+                    <MapPin size={12} color={c.faint} strokeWidth={1.75} />
+                    <Text style={styles.cardLocation}>
+                      {lead.details?.where_met || 'Location not set'}
+                    </Text>
+                  </View>
 
-                  <ThemedText type="code" themeColor="textSecondary" style={styles.cardDate}>
-                    {new Date(lead.created_at).toLocaleDateString(undefined, {
-                      month: 'short',
-                      day: 'numeric',
-                    })}
-                  </ThemedText>
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardDate}>
+                      {new Date(lead.created_at).toLocaleDateString(undefined, {
+                        month: 'short',
+                        day: 'numeric',
+                      })}
+                    </Text>
+                    <ChevronRight size={14} color={c.faint} strokeWidth={2} />
+                  </View>
                 </View>
-              </Pressable>
-            );
-          })}
+              </View>
+            </Pressable>
+          ))}
         </ScrollView>
       )}
 
@@ -308,102 +308,77 @@ export default function HistoryScreen() {
       >
         {selectedLead && (
           <View style={styles.modalBackdrop}>
-            <ThemedView type="backgroundElement" style={styles.modalContent}>
-              
+            <View style={styles.modalContent}>
+
               {/* Modal Header */}
               <View style={styles.modalHeader}>
                 <View style={{ flex: 1 }}>
-                  <ThemedText type="default" style={styles.modalName}>{selectedLead.customer_name}</ThemedText>
-                  <ThemedText type="small" themeColor="textSecondary">
-                    {selectedLead.details?.job_title || 'No Job Title'}
-                  </ThemedText>
+                  <Label>CRM record</Label>
+                  <Text style={styles.modalName}>{selectedLead.customer_name}</Text>
+                  <Text style={styles.modalRole}>
+                    {selectedLead.details?.job_title || 'No job title'}
+                    {selectedLead.details?.company ? `  ·  ${selectedLead.details.company}` : ''}
+                  </Text>
                 </View>
                 <Pressable onPress={() => setSelectedLead(null)} style={styles.closeButton}>
-                  <ThemedText style={{ fontSize: 18, color: theme.text }}>✕</ThemedText>
+                  <X size={16} color={c.text} strokeWidth={2} />
                 </Pressable>
               </View>
 
+              {/* Quick actions */}
+              <View style={styles.quickRow}>
+                {selectedLead.customer_email ? (
+                  <Pressable
+                    onPress={() => handleEmail(selectedLead.customer_email)}
+                    style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: c.backgroundSelected }]}
+                  >
+                    <Mail size={15} color={c.text} strokeWidth={1.75} />
+                    <Text style={styles.quickText}>Email</Text>
+                  </Pressable>
+                ) : null}
+                {selectedLead.customer_phone ? (
+                  <Pressable
+                    onPress={() => handleCall(selectedLead.customer_phone)}
+                    style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: c.backgroundSelected }]}
+                  >
+                    <Phone size={15} color={c.text} strokeWidth={1.75} />
+                    <Text style={styles.quickText}>Call</Text>
+                  </Pressable>
+                ) : null}
+                {selectedLead.details?.website ? (
+                  <Pressable
+                    onPress={() => handleWebsite(selectedLead.details.website!)}
+                    style={({ pressed }) => [styles.quickBtn, pressed && { backgroundColor: c.backgroundSelected }]}
+                  >
+                    <Globe size={15} color={c.text} strokeWidth={1.75} />
+                    <Text style={styles.quickText}>Website</Text>
+                  </Pressable>
+                ) : null}
+              </View>
+
               {/* Scrollable details */}
-              <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingBottom: Spacing.four }}>
-                
-                {/* Company & Location Card */}
-                <View style={[styles.detailGroup, { borderBottomWidth: 1, borderBottomColor: theme.backgroundSelected }]}>
-                  {selectedLead.details?.company && (
-                    <View style={styles.detailRow}>
-                      <ThemedText style={styles.detailEmoji}>🏢</ThemedText>
-                      <View>
-                        <ThemedText type="code" themeColor="textSecondary">Company</ThemedText>
-                        <ThemedText type="small" style={{ color: theme.text }}>{selectedLead.details.company}</ThemedText>
-                      </View>
-                    </View>
-                  )}
-                  <View style={styles.detailRow}>
-                    <ThemedText style={styles.detailEmoji}>📍</ThemedText>
-                    <View>
-                      <ThemedText type="code" themeColor="textSecondary">Where Met</ThemedText>
-                      <ThemedText type="small" style={{ color: theme.text }}>
-                        {selectedLead.details?.where_met || 'Not specified'}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  {selectedLead.details?.why_met && (
-                    <View style={styles.detailRow}>
-                      <ThemedText style={styles.detailEmoji}>🎯</ThemedText>
-                      <View>
-                        <ThemedText type="code" themeColor="textSecondary">Why Met</ThemedText>
-                        <ThemedText type="small" style={{ color: theme.text }}>{selectedLead.details.why_met}</ThemedText>
-                      </View>
-                    </View>
-                  )}
-                </View>
+              <ScrollView style={styles.modalScroll} contentContainerStyle={{ paddingBottom: Spacing.four, gap: Spacing.three }}>
 
-                {/* Coordinates & Shortcuts */}
-                <View style={[styles.detailGroup, { borderBottomWidth: 1, borderBottomColor: theme.backgroundSelected }]}>
-                  
-                  {/* Email */}
+                <Card contentStyle={styles.detailCard}>
+                  <DetailRow Icon={MapPin} label="Where met" value={selectedLead.details?.where_met || 'Not specified'} />
+                  {selectedLead.details?.why_met ? (
+                    <DetailRow Icon={Target} label="Why it matters" value={selectedLead.details.why_met} />
+                  ) : null}
                   {selectedLead.customer_email ? (
-                    <Pressable onPress={() => handleEmail(selectedLead.customer_email)} style={styles.actionRow}>
-                      <View style={{ flex: 1 }}>
-                        <ThemedText type="code" themeColor="textSecondary">Email Address</ThemedText>
-                        <ThemedText type="small" style={{ color: theme.text }}>{selectedLead.customer_email}</ThemedText>
-                      </View>
-                      <ThemedText style={styles.actionArrow}>✉️</ThemedText>
-                    </Pressable>
+                    <DetailRow Icon={Mail} label="Email" value={selectedLead.customer_email} />
                   ) : null}
-
-                  {/* Phone */}
                   {selectedLead.customer_phone ? (
-                    <Pressable onPress={() => handleCall(selectedLead.customer_phone)} style={styles.actionRow}>
-                      <View style={{ flex: 1 }}>
-                        <ThemedText type="code" themeColor="textSecondary">Phone Number</ThemedText>
-                        <ThemedText type="small" style={{ color: theme.text }}>{selectedLead.customer_phone}</ThemedText>
-                      </View>
-                      <ThemedText style={styles.actionArrow}>📞</ThemedText>
-                    </Pressable>
+                    <DetailRow Icon={Phone} label="Phone" value={selectedLead.customer_phone} />
                   ) : null}
+                </Card>
 
-                  {/* Website */}
-                  {selectedLead.details?.website ? (
-                    <Pressable onPress={() => handleWebsite(selectedLead.details.website!)} style={styles.actionRow}>
-                      <View style={{ flex: 1 }}>
-                        <ThemedText type="code" themeColor="textSecondary">Website</ThemedText>
-                        <ThemedText type="small" style={{ color: theme.text }}>{selectedLead.details.website}</ThemedText>
-                      </View>
-                      <ThemedText style={styles.actionArrow}>🌐</ThemedText>
-                    </Pressable>
-                  ) : null}
-                </View>
-
-                {/* Notes Section */}
-                <View style={styles.detailGroup}>
-                  <ThemedText type="code" themeColor="textSecondary" style={{ marginBottom: Spacing.one }}>
-                    Interaction Notes
-                  </ThemedText>
-                  <ThemedView type="backgroundSelected" style={styles.notesBlock}>
-                    <ThemedText type="small" style={{ fontStyle: 'italic', lineHeight: 20 }}>
+                <View>
+                  <Label style={{ marginBottom: Spacing.two, marginLeft: Spacing.one }}>Notes</Label>
+                  <Card contentStyle={styles.notesBlock}>
+                    <Text style={styles.notesText}>
                       {selectedLead.notes || 'No notes taken.'}
-                    </ThemedText>
-                  </ThemedView>
+                    </Text>
+                  </Card>
                 </View>
 
               </ScrollView>
@@ -413,28 +388,24 @@ export default function HistoryScreen() {
                 <Pressable
                   onPress={() => handleDeleteLead(selectedLead.id)}
                   disabled={actionLoading}
-                  style={[styles.deleteButton, { borderColor: theme.backgroundSelected }]}
+                  style={({ pressed }) => [styles.deleteButton, pressed && { backgroundColor: 'rgba(248,113,113,0.12)' }]}
                 >
                   {actionLoading ? (
-                    <ActivityIndicator size="small" color="#ef4444" />
+                    <ActivityIndicator size="small" color={c.danger} />
                   ) : (
-                    <ThemedText type="smallBold" style={{ color: '#ef4444' }}>
-                      Delete Contact
-                    </ThemedText>
+                    <Text style={styles.deleteText}>Delete</Text>
                   )}
                 </Pressable>
 
                 <Pressable
                   onPress={() => setSelectedLead(null)}
-                  style={[styles.closeModalButton, { backgroundColor: '#6366f1' }]}
+                  style={({ pressed }) => [styles.doneButton, pressed && { opacity: 0.85 }]}
                 >
-                  <ThemedText type="smallBold" style={{ color: '#ffffff' }}>
-                    Done
-                  </ThemedText>
+                  <Text style={styles.doneText}>Done</Text>
                 </Pressable>
               </View>
 
-            </ThemedView>
+            </View>
           </View>
         )}
       </Modal>
@@ -443,25 +414,85 @@ export default function HistoryScreen() {
   );
 }
 
+function DetailRow({
+  Icon,
+  label,
+  value,
+}: {
+  Icon: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
+  label: string;
+  value: string;
+}) {
+  return (
+    <View style={styles.detailRow}>
+      <View style={styles.detailIcon}>
+        <Icon size={15} color={c.muted} strokeWidth={1.75} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Label>{label}</Label>
+        <Text style={styles.detailValue}>{value}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: c.background,
   },
   header: {
     padding: Spacing.four,
-    gap: Spacing.two,
+    paddingBottom: Spacing.three,
+    gap: Spacing.three,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    borderBottomColor: c.hairline,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
   },
   title: {
+    color: c.text,
     fontWeight: '800',
+    fontSize: 30,
+    letterSpacing: -1,
+  },
+  logoutButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing.three,
+    paddingVertical: Spacing.two,
+    borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.25)',
+    borderRadius: Radii.sm,
+  },
+  logoutText: {
+    color: c.danger,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  searchWrap: {
+    position: 'relative',
+    justifyContent: 'center',
+  },
+  searchIcon: {
+    position: 'absolute',
+    left: Spacing.three,
+    zIndex: 1,
   },
   searchBar: {
-    height: 40,
+    height: 44,
     borderWidth: 1,
-    borderRadius: Spacing.one,
-    paddingHorizontal: Spacing.three,
+    borderColor: c.hairline,
+    borderRadius: Radii.sm,
+    paddingLeft: 40,
+    paddingRight: Spacing.three,
     fontSize: 14,
+    color: c.text,
+    backgroundColor: 'rgba(255,255,255,0.02)',
   },
   centerContainer: {
     flexGrow: 1,
@@ -469,43 +500,62 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: Spacing.five,
   },
+  emptyTile: {
+    width: 56,
+    height: 56,
+    borderRadius: Radii.md,
+    backgroundColor: c.backgroundElement,
+    borderWidth: 1,
+    borderColor: c.hairline,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.three,
+  },
+  emptyText: {
+    color: c.text,
+    fontWeight: '700',
+    fontSize: 15,
+    marginBottom: Spacing.one,
+  },
+  emptySub: {
+    color: c.muted,
+    textAlign: 'center',
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 260,
+  },
   listContent: {
     padding: Spacing.four,
     gap: Spacing.three,
   },
   card: {
-    borderRadius: Spacing.two,
     padding: Spacing.three,
-    borderWidth: 1,
     gap: Spacing.two,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
   },
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
   },
   cardName: {
+    color: c.text,
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: '700',
+    letterSpacing: -0.3,
   },
   cardTitle: {
-    fontSize: 11,
+    color: c.muted,
+    fontSize: 12,
     marginTop: 2,
   },
-  statusBadge: {
-    paddingHorizontal: Spacing.two,
-    paddingVertical: 4,
-    borderRadius: Spacing.one,
-  },
-  statusText: {
-    fontSize: 9,
-    fontWeight: 'bold',
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   cardCompany: {
+    color: c.textSecondary,
     fontSize: 13,
+    fontWeight: '600',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -513,113 +563,152 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: Spacing.one,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.02)',
+    borderTopColor: c.hairline,
     paddingTop: Spacing.two,
   },
   cardLocation: {
-    fontSize: 11,
+    color: c.muted,
+    fontSize: 12,
   },
   cardDate: {
-    fontSize: 10,
-  },
-  emptyIcon: {
-    fontSize: 40,
-    marginBottom: Spacing.two,
-  },
-  emptyText: {
-    fontWeight: 'bold',
-    marginBottom: Spacing.one,
-  },
-  emptySub: {
-    textAlign: 'center',
-    fontSize: 13,
-    lineHeight: 18,
+    color: c.muted,
+    fontSize: 11,
+    fontFamily: undefined,
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   modalContent: {
-    height: '85%',
-    borderTopLeftRadius: Spacing.two,
-    borderTopRightRadius: Spacing.two,
+    height: '88%',
+    backgroundColor: c.background,
+    borderTopLeftRadius: Radii.lg,
+    borderTopRightRadius: Radii.lg,
+    borderWidth: 1,
+    borderColor: c.hairline,
     padding: Spacing.four,
-    gap: Spacing.four,
+    gap: Spacing.three,
   },
   modalHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.03)',
+    borderBottomColor: c.hairline,
     paddingBottom: Spacing.three,
+    gap: Spacing.two,
   },
   modalName: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    color: c.text,
+    fontSize: 22,
+    fontWeight: '800',
+    letterSpacing: -0.6,
+    marginTop: Spacing.one,
+  },
+  modalRole: {
+    color: c.muted,
+    fontSize: 13,
+    marginTop: 2,
   },
   closeButton: {
     width: 36,
     height: 36,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
+    borderWidth: 1,
+    borderColor: c.hairline,
+    backgroundColor: c.backgroundElement,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  quickRow: {
+    flexDirection: 'row',
+    gap: Spacing.two,
+  },
+  quickBtn: {
+    flex: 1,
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderColor: c.hairline,
+    borderRadius: Radii.sm,
+    backgroundColor: c.backgroundElement,
+  },
+  quickText: {
+    color: c.text,
+    fontSize: 13,
+    fontWeight: '600',
   },
   modalScroll: {
     flex: 1,
   },
-  detailGroup: {
-    paddingVertical: Spacing.three,
-    gap: Spacing.two,
+  detailCard: {
+    padding: Spacing.three,
+    gap: Spacing.four,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.three,
   },
-  detailEmoji: {
-    fontSize: 18,
-    width: 24,
-    textAlign: 'center',
-  },
-  actionRow: {
-    flexDirection: 'row',
+  detailIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: Radii.sm,
+    backgroundColor: c.backgroundElement,
+    borderWidth: 1,
+    borderColor: c.hairline,
     alignItems: 'center',
-    paddingVertical: Spacing.two,
+    justifyContent: 'center',
   },
-  actionArrow: {
-    fontSize: 18,
+  detailValue: {
+    color: c.text,
+    fontSize: 14,
+    marginTop: 3,
   },
   notesBlock: {
-    borderRadius: Spacing.two,
     padding: Spacing.three,
+  },
+  notesText: {
+    color: c.textSecondary,
+    fontSize: 14,
+    fontStyle: 'italic',
+    lineHeight: 21,
   },
   modalFooter: {
     flexDirection: 'row',
     gap: Spacing.three,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.03)',
+    borderTopColor: c.hairline,
     paddingTop: Spacing.three,
   },
   deleteButton: {
     flex: 1,
     height: 48,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
     borderWidth: 1,
+    borderColor: 'rgba(248,113,113,0.25)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  closeModalButton: {
+  deleteText: {
+    color: c.danger,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  doneButton: {
     flex: 1,
     height: 48,
-    borderRadius: Spacing.one,
+    borderRadius: Radii.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: c.primary,
   },
-  logoutButton: {
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.one,
-    borderWidth: 1,
-    borderRadius: Spacing.one,
+  doneText: {
+    color: c.primaryText,
+    fontWeight: '700',
+    fontSize: 14,
   },
 });

@@ -7,21 +7,35 @@ import '@/global.css';
 
 import { Platform } from 'react-native';
 
+// CardDex design system — shared identity with the web dashboard.
+// Editorial-tactical dark: near-black canvas, zinc type scale, hairline
+// bezels, monospace micro-labels, white primary action, status accents.
+// The app is dark-only (like the web), so both schemes resolve to the same
+// palette regardless of the device setting.
+const carddex = {
+  text: '#fafafa',
+  background: '#050505',
+  backgroundElement: 'rgba(255,255,255,0.02)',
+  backgroundSelected: 'rgba(255,255,255,0.08)',
+  textSecondary: '#a1a1aa',
+  // extended tokens
+  muted: '#71717a',
+  faint: '#52525b',
+  hairline: 'rgba(255,255,255,0.06)',
+  bezel: 'rgba(255,255,255,0.015)',
+  panel: 'rgba(255,255,255,0.02)',
+  primary: '#f4f4f5',
+  primaryText: '#09090b',
+  danger: '#f87171',
+  statusNew: '#60a5fa',
+  statusContacted: '#c084fc',
+  statusHot: '#fbbf24',
+  statusArchived: '#a1a1aa',
+} as const;
+
 export const Colors = {
-  light: {
-    text: '#000000',
-    background: '#ffffff',
-    backgroundElement: '#F0F0F3',
-    backgroundSelected: '#E0E1E6',
-    textSecondary: '#60646C',
-  },
-  dark: {
-    text: '#ffffff',
-    background: '#000000',
-    backgroundElement: '#212225',
-    backgroundSelected: '#2E3135',
-    textSecondary: '#B0B4BA',
-  },
+  light: carddex,
+  dark: carddex,
 } as const;
 
 export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
@@ -59,6 +73,15 @@ export const Spacing = {
   four: 24,
   five: 32,
   six: 64,
+} as const;
+
+// Calibrated micro-radius scale — deliberately sharp, matching the web.
+export const Radii = {
+  xs: 4,
+  sm: 6,
+  md: 10,
+  lg: 14,
+  pill: 999,
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;

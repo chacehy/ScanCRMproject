@@ -1,0 +1,29 @@
+# CardDex — Personal CRM
+
+Solves business-card hoarding: scan a card, capture *why* you met someone, track follow-up status over time.
+
+## Structure
+
+Two independent apps sharing one Supabase backend (same project, same `leads` table):
+
+- `web/` — Next.js 16 / React 19 dashboard. Also hosts `app/api/scan/route.ts`, a serverless OCR endpoint (Gemini 2.5 Flash) used by the mobile app. See `web/CLAUDE.md`.
+- `app/` — Expo 56 / React Native mobile app. Two tabs: Scan Card (camera → OCR → save) and History (browse/search/delete). See `app/CLAUDE.md`.
+- `supabase/migrations/` — best-effort inferred schema for the `leads` table (not yet reconciled against the live project — see the comment at the top of the migration file).
+
+## Data model
+
+`leads` table: `id, type, customer_name, customer_phone, customer_email, status (new|followed_up|hot|archived), notes, details (jsonb: company, job_title, website, where_met, why_met), created_at, user_id`. RLS scopes all rows to `auth.uid() = user_id`.
+
+## Env vars
+
+Both apps need matching Supabase credentials (same project). Copy `.env.example` → `.env.local` in each of `web/` and `app/` and fill in:
+
+- Supabase: `NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_ANON_KEY` (web), `EXPO_PUBLIC_SUPABASE_URL`/`EXPO_PUBLIC_SUPABASE_ANON_KEY` (app) — same values in both.
+- `GEMINI_API_KEY` (web only) — powers real OCR in `/api/scan`. Without it, the endpoint returns mock data.
+- `EXPO_PUBLIC_API_URL` (app only, optional) — points the mobile app at a deployed web backend. Leave unset in local dev; it auto-detects the Metro dev server's LAN IP for the Android emulator/physical device.
+
+## Dev workflow
+
+1. `cd web && npm run dev` — starts the Next.js app (and its `/api/scan` OCR route) on `localhost:3000`.
+2. `cd app && npm start` — starts Expo. The mobile app's scan flow calls the web app's `/api/scan` over the LAN, so both must be running together for OCR to work in dev.
+3. Android emulator note: cleartext (plain HTTP) traffic to the dev server is allowed via `android:usesCleartextTraffic="true"` in `app/android/app/src/main/AndroidManifest.xml` and mirrored in `app/app.json`. This is scoped for dev convenience only — before shipping a release build, replace it with a network security config scoped to specific dev hosts rather than a blanket allow.
